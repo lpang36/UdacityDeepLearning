@@ -81,6 +81,19 @@ def maybe_extract(filename, force=False):
 train_folders = maybe_extract(train_filename)
 test_folders = maybe_extract(test_filename)
 
+def display_sample_images(foldername,num=5):
+  #image_files = os.listdir(foldername)
+  for folder in foldername:
+    count = 1;
+    for image in folder:
+      image_file = os.path.join(folder,image)
+      Image(filename=image_file)
+      count=count+1;
+      if count > num:
+        break
+
+#display_sample_images(train_folders)
+#display_sample_images(test_folders)
 
 image_size = 28  # Pixel width and height.
 pixel_depth = 255.0  # Number of levels per pixel.
@@ -135,6 +148,22 @@ def maybe_pickle(data_folders, min_num_images_per_class, force=False):
 
 train_datasets = maybe_pickle(train_folders, 45000)
 test_datasets = maybe_pickle(test_folders, 1800)
+
+def display_sample_labels(pickle_files,num=5):
+  for label, pickle_file in enumerate(pickle_files):
+    with open(pickle_file, 'rb') as f:
+      letter_set = pickle.load(f)
+      count = 0
+      for letter in letter_set:
+        fig = plt.figure()
+        fig.text(label)
+        fig.imshow(letter)
+		
+def verify_balance(pickle_files):
+  for label, pickle_file in enumerate(pickle_files):
+    with open(pickle_file, 'rb') as f:
+      letter_set = pickle.load(f)
+      print(label,': ',len(letter_set),'\n')
 
 def make_arrays(nb_rows, img_size):
   if nb_rows:
@@ -220,3 +249,56 @@ except Exception as e:
 
 statinfo = os.stat(pickle_file)
 print('Compressed pickle size:', statinfo.st_size)
+
+def custom_reshape(save):
+  save['train_dataset'] = np.array(save['train_dataset'])
+  save['valid_dataset'] = np.array(save['valid_dataset']) 
+  save['test_dataset'] = np.array(save['test_dataset'])
+  shape = ((save['train_dataset']).shape[0],(save['train_dataset']).shape[1]*(save['train_dataset']).shape[2])
+  save['train_dataset'] = np.reshape(save['train_dataset'],shape)
+  shape = ((save['valid_dataset']).shape[0],(save['valid_dataset']).shape[1]*(save['valid_dataset']).shape[2])
+  save['valid_dataset'] = np.reshape(save['valid_dataset'],shape)
+  shape = ((save['test_dataset']).shape[0],(save['test_dataset']).shape[1]*(save['test_dataset']).shape[2])
+  save['test_dataset'] = np.reshape(save['test_dataset'],shape) 
+
+def detect_duplicates(data):
+  with open(data,'rb') as data:
+    save = pickle.load(data)
+    save = custom_reshape(save)
+    tosort = []
+    #for i in range(0,len(save['train_dataset'])):
+      #tosort.append([save['train_labels'][i], ''.join(map(str,save['train_dataset'][i]))])
+    for i in range(0,len(save['valid_dataset'])):
+      tosort.append([save['valid_labels'][i], ''.join(map(str,save['valid_dataset'][i]))])
+    for i in range(0,len(save['test_dataset'])):
+      tosort.append(a[save['test_labels'][i], ''.join(map(str,save['test_dataset'][i]))])
+    tosort.sort(key=lambda x: x[1])
+    count = 0
+    for i in range(1,len(tosort)):
+      if tosort[i][0] != tosort[i-1][0]:
+        if tosort[i][1] != tosort [i-1][1]:
+          count = count+1
+    print(count)
+
+#detect_duplicates(pickle_file)
+
+def diff(y, z):
+  count = 0
+  for i in range(0,len(y)):
+    if y[i] != z[i]:
+      count = count+1
+  return count
+
+def train(data, num):
+  with open(data,'rb') as data:
+    save = pickle.load(data)
+    custom_reshape(save)
+    #print(type(save['train_dataset']))
+    lr = LogisticRegression()
+    lr.fit(save['train_dataset'][:num],save['train_labels'][:num])
+    return 1 - (diff(save['test_labels'],lr.predict(save['test_dataset']))+0.0) / len(save['test_labels'])
+
+print(train(pickle_file,50),'\n')
+print(train(pickle_file,100),'\n')
+print(train(pickle_file,1000),'\n')
+print(train(pickle_file,5000),'\n')
