@@ -286,7 +286,7 @@ def diff(y, z):
   count = 0
   for i in range(0,len(y)):
     if y[i] != z[i]:
-      count = count+1
+      count = count+
   return count
 
 def train(data, num):
